@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Install, update and uninstall functions for the flickity slider module.
+ * Install, update and uninstall functions for the flickity module.
  */
 
 /**
@@ -17,14 +17,16 @@ function flickity_install() {
     'type' => $name,
     'name' => $t('Flickity Slideshow'),
     'base' => 'node_content',
-    'title_label' => $t('Title'),
-    'description' => $t('Slider Content'),
+    'title_label' => $t('Slideshow Title'),
+    'description' => $t('Slideshow Content'),
     'custom' => TRUE,
     'comment' => 0,
   );
   // Set other node defaults not declared above.
   $content_type = node_type_set_defaults($slideshow);
-   // Making comment settings closed.
+  // Add the body field.
+  node_add_body_field($content_type, $t('Slideshow Description'));
+  // Making comment settings closed.
   variable_set('comment_flickity', '1');
   node_type_save($content_type);
   // Add peristant variables that control settings.
@@ -34,7 +36,13 @@ function flickity_install() {
   variable_set('node_submitted_' . $name, 0);
   variable_set('menu_options_' . $name, array());
   variable_set('menu_parent_' . $name, 'main-menu:0');
-
+  // Create all the fields we are adding to our content type.
+  foreach (_flickity_installed_fields() as $field) {
+    if (!field_info_field('field_slideshow_image') || !field_info_field('field_slideshow_teaser')) {
+      field_info_cache_clear();
+      field_create_field($field);
+    }
+  }
   // Create all the instances for our fields.
   foreach (_flickity_installed_instances() as $instance) {
     $instance['entity_type'] = 'node';
@@ -46,8 +54,8 @@ function flickity_install() {
   $effect = array(
     'name' => 'image_scale_and_crop',
     'data' => array(
-      'width' => 1000,
-      'height' => auto,
+      'width' => 1140,
+      'height' => 300,
       'upscale' => TRUE,
     ),
     'isid' => $style['isid'],
@@ -75,7 +83,7 @@ function _flickity_installed_fields() {
   $field_array = array(
     'slideshow_image' => array(
       'field_name' => 'field_slideshow_image',
-      'label' => $t('Slider Image'),
+      'label' => $t('Slideshow Image'),
       'cardinality' => 1,
       'type' => 'image',
       'settings' => array(
@@ -83,7 +91,16 @@ function _flickity_installed_fields() {
         'uri_scheme' => 'public',
       ),
     ),
-   
+     // A text (textarea) field.
+    'slideshow_teaser' => array(
+      'field_name'   => 'field_slideshow_teaser',
+      'label'        => $t('Teaser'),
+      'cardinality'  => 1,
+      'type'         => 'text',
+      'settings'     => array(
+        'max_length'  => 1000,
+      ),
+    ),
   );
   return $field_array;
 }
@@ -102,7 +119,7 @@ function _flickity_installed_instances() {
     // Instance of the image field above.
     'slideshow_image' => array(
       'field_name' => 'field_slideshow_image',
-      'label' => $t('Slider Image'),
+      'label' => $t('Slideshow Image'),
       'cardinality' => 1,
       'required' => TRUE,
       'type' => 'slideshow_image',
@@ -138,11 +155,32 @@ function _flickity_installed_instances() {
       ),
     ),
     // Instance of the textarea field above.
-   
+    'slideshow_teaser' => array(
+      'field_name'  => 'field_slideshow_teaser',
+      'label'       => $t('Teaser'),
+      'cardinality' => 1,
+      'widget'      => array(
+        'type'       => 'text_textarea',
+        'settings'   => array('rows' => 5),
+      ),
+      'display' => array(
+        'default' => array(
+          'label' => 'hidden',
+        ),
+      ),
+    ),
   );
   return $instance_array;
 }
 
+/**
+ * Implements hook_enable().
+ */
+function flickity_enable() {
+  variable_set('flickity_no_of_slides', 5);
+  variable_set('flickity_description_length', 180);
+  variable_set('flickity_interval', 5000);
+}
 
 /**
  * Implements hook_uninstall().
@@ -175,6 +213,8 @@ function flickity_uninstall() {
   field_purge_batch(1000);
   // Delete created image style.
   image_style_delete(image_style_load('flickity_style'));
+  
+ 
   // Clear the cache tables.
   drupal_flush_all_caches();
 }
