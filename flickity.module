@@ -1,0 +1,87 @@
+<?php
+/**
+ * @file
+ * This module allows create flickity slideshows.
+ */
+
+/**
+ * Implements hook_block_info().
+ */
+function flickity_block_info() {
+  $blocks['flickity'] = array(
+    // info: The name of the block.
+    'info' => t('Flickity Slideshow'),
+    'visibility' => BLOCK_VISIBILITY_LISTED,
+    'pages' => "<front>",
+  );
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function flickity_block_view($delta = '') {
+  $block = array();
+  // The $delta parameter tells us which block is being requested.
+  switch ($delta) {
+    case 'flickity':
+      // Create your block content here.
+      $slide_array = flickity_homepage();
+      $slide_array_count = count($slide_array);
+      $block['content'] = theme('flickity', array('flickity_items' => $slide_array, 'flickity_item_count' => $slide_array_count));
+      break;
+  }
+  return $block;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function flickity_theme() {
+  return array(
+    'flickity' => array(
+      'variables' => array('flickity_items' => 'NULL', 'flickity_item_count' => 'NULL'),
+      'template' => 'flickity',
+    ),
+  );
+}
+
+
+/**
+ * Function for retreiving slides contents.
+ *
+ * @see flickity_block_view()
+ */
+function flickity_homepage() {
+  $slide_array = array();
+  global $language;
+  $current_language = isset($language->language) ? $language->language : 'en';
+  $query = db_select('node', 'n')
+    ->fields('n', array('nid'))
+    ->condition('n.type', 'flickity', '=')
+    ->condition('n.status', 1, '=')
+    ->condition('n.language', array($current_language, LANGUAGE_NONE), 'IN');
+  $query->innerJoin('field_data_field_slideshow_image', 'img', 'n.nid = img.entity_id');
+  $query->orderBy('n.changed', 'DESC');
+  $query_result = $query->execute();
+  foreach ($query_result as $key => $record) {
+    $slide_array[$key]['nid'] = $record->nid;
+    $slide_node = node_load($record->nid);
+    $field_slideshow_image = field_get_items('node', $slide_node, 'field_slideshow_image');
+    if (!empty($field_slideshow_image)) {
+      $slide_array[$key]['image']['alt'] = !empty($field_slideshow_image[0]['alt']) ? $field_slideshow_image[0]['alt'] : $slide_node->title;
+      $slide_array[$key]['image']['pic'] = image_style_url('flickity_style', $field_slideshow_image[0]['uri']);
+    }
+    $path = 'node/' . $record->nid . '/edit';
+    if ($router_item = menu_get_item($path)) {
+      if ($router_item['access']) {
+        // The user has access to the page in $path.
+        $slide_array[$key]['link'] = l(t('Edit'), $path, array('attributes' => array('class' => 'edit-link'), 'query' => array('destination' => 'node')));
+      }
+    }
+  }
+  return $slide_array;
+}
+
+
+

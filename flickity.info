@@ -1,0 +1,10 @@
+name = Flickity slider
+description = "Module for getting touch slider or you can farword image using mouse "
+core = 7.x
+dependencies[] = image
+dependencies[] = jquery_update
+; Add a style sheet
+stylesheets[all][] = flickity.css
+scripts[] = flickity.pkgd.min.js
+scripts[] = custom.js
+
